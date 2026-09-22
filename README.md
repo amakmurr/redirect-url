@@ -19,7 +19,7 @@ Returns `200 { "status": "ok" }`.
 GET /{path1}/{path2}.jpg
 ```
 
-Redirects (`301`) to:
+Redirects (`302`, cached for 5 minutes) to:
 
 ```
 https://mekaripos-staging-cdn.mekari.io/attachments/{path1}/{path2}?x-oss-process=image/resize,m_fill,w_800,h_800,limit_0/format,jpg
@@ -47,8 +47,19 @@ Override the redirect base URL with an `origin` query param:
 GET /{path1}/{path2}.jpg?origin={base_url}
 ```
 
-- If `origin` is omitted or not a valid `http(s)` URL, it defaults to `https://mekaripos-staging-cdn.mekari.io/attachments`.
+- If `origin` is omitted, it defaults to `https://mekaripos-staging-cdn.mekari.io/attachments`.
+- If `origin` is present, it must be a valid `http(s)` URL whose host is on the allowlist (see below) — otherwise the request returns `400`. This is intentional: a caller that gets an origin silently ignored would otherwise receive a `200`-equivalent redirect to the wrong base with no way to detect it.
 - A trailing `/` on `origin` is normalized.
+
+**Origin allowlist**
+
+To prevent open-redirect abuse, `origin` hosts are checked against an allowlist (exact host or subdomain match), configurable via the `ALLOWED_ORIGIN_HOSTS` env var (comma-separated), defaulting to:
+
+```
+mekari.io,mekari.com
+```
+
+`cdn.mekari.io` is allowed; `mekari.io.evil.example` is not.
 
 **Example**
 
@@ -62,11 +73,20 @@ https://redirect-url-six.vercel.app/defac458-62af-494e-8c3c-a49504fd4290/8aa6142
 https://example.com/attachments/defac458-62af-494e-8c3c-a49504fd4290/8aa61423-7435-46b8-90aa-da001191e18a?x-oss-process=image/resize,m_fill,w_800,h_800,limit_0/format,jpg
 ```
 
+## Configuration
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `ALLOWED_ORIGIN_HOSTS` | `mekari.io,mekari.com` | Comma-separated allowlist of hosts `origin` may target (exact or subdomain match). |
+| `IMAGE_TRANSFORM` | `x-oss-process=image/resize,m_fill,w_800,h_800,limit_0/format,jpg` | Query string appended to the redirect target. Adjustable without a redeploy. |
+| `PORT` | `3000` | Local server port. |
+
 ## Local development
 
 ```
 npm install
 npm start
+npm test
 ```
 
 Server runs on `http://localhost:3000` (or `$PORT`).
