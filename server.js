@@ -2,25 +2,32 @@ const express = require('express');
 
 const app = express();
 
-const IMAGE_REDIRECT_URL =
-  'https://mekaripos-staging-cdn.mekari.io/attachments/18b508ac-4dd5-46fc-984d-3405a8e65d69/5a74a94b-99ab-4dd0-8728-fb91ad5f13d6?x-oss-process=image/resize,m_fill,w_800,h_800,limit_0/format,jpg';
+const DEFAULT_ORIGIN = 'https://mekaripos-staging-cdn.mekari.io/attachments';
 
-const IMAGE2_REDIRECT_URL =
-  'https://mekaripos-staging-cdn.mekari.io/attachments/18b508ac-4dd5-46fc-984d-3405a8e65d69/c45cb40c-438f-4780-a7df-59128bc2af16?x-oss-process=image/resize,m_fill,w_800,h_800,limit_0/format,jpg';
+const PATH_SEGMENT_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function resolveOrigin(rawOrigin) {
+  if (!rawOrigin) {
+    return DEFAULT_ORIGIN;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(rawOrigin);
+  } catch {
+    return DEFAULT_ORIGIN;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return DEFAULT_ORIGIN;
+  }
+
+  return rawOrigin.replace(/\/+$/, '');
+}
 
 app.get('/', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
-
-app.get('/image.jpg', (req, res) => {
-  res.redirect(301, IMAGE_REDIRECT_URL);
-});
-
-app.get('/image2.jpg', (req, res) => {
-  res.redirect(301, IMAGE2_REDIRECT_URL);
-});
-
-const PATH_SEGMENT_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 app.get('/:path1/:path2.jpg', (req, res) => {
   const { path1, path2 } = req.params;
@@ -29,7 +36,8 @@ app.get('/:path1/:path2.jpg', (req, res) => {
     return res.status(400).json({ error: 'Invalid path' });
   }
 
-  const url = `https://mekaripos-staging-cdn.mekari.io/attachments/${path1}/${path2}?x-oss-process=image/resize,m_fill,w_800,h_800,limit_0/format,jpg`;
+  const origin = resolveOrigin(req.query.origin);
+  const url = `${origin}/${path1}/${path2}?x-oss-process=image/resize,m_fill,w_800,h_800,limit_0/format,jpg`;
   res.redirect(301, url);
 });
 
